@@ -1,7 +1,7 @@
 //ls renvoie le nom des fichiers trié apr ordre alphabétique 
 //ls -a montre aussi les fichiers cachés
-//ls -l donne plsu d'info
-//ls /dossier renvoie les fichiers contenuent dans dossier
+//ls -l donne plus d'infos : permissions  liens  proprietaire  groupe  taille  date  nom
+//ls /dossier renvoie les fichiers contenus dans dossier
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 void ls(char* target_dir, int show_hidden, int show_long) {
@@ -18,20 +19,27 @@ void ls(char* target_dir, int show_hidden, int show_long) {
 
     dir = opendir(target_dir); 
 
-        printf("   name     |    taille \n");
         dir_file = readdir(dir);
+        printf("permissions  liens  proprietaire  groupe  taille  date  nom\n");
         while(dir_file != NULL) {
-            struct stat file_info;
-            stat(dir_file->d_name, &file_info);
+            if (!show_hidden && dir_file->d_name[0] == '.') { //Le fichier doit etre affiché
+                dir_file = readdir(dir);
+                continue;
 
-            if (show_hidden) {
-                printf("%10s  |  %8lio\n", dir_file->d_name, file_info.st_size);
-            } else {
-                if(dir_file->d_name[0] != '.') {  //Empeche l'affichage des entrée . .. ... rajouté par readdir et des fichierscommencant pas "."
-                    printf("%10s  |  %8lio\n", dir_file->d_name, file_info.st_size);
-                }
             }
-            
+            if (show_long) {
+                struct stat file_info;
+                size_t len = strlen(dir_file->d_name) + strlen(target_dir) + 2; //+2 pour le "/" et le "\0"
+                char* pathname = malloc(len);
+                strcat(pathname, target_dir); strcat(pathname, "/"); strcat(pathname, dir_file->d_name); 
+                if (stat(pathname, &file_info) == -1) {
+                    perror("stat failed");
+                }
+                printf("%lu  %lu  %d  %d  %ld  %li  %s\n", file_info.st_rdev, file_info.st_nlink, file_info.st_uid, file_info.st_gid, file_info.st_size, file_info.st_mtime, dir_file->d_name);
+
+            } else {
+                printf("%s  \n", dir_file->d_name);
+            }
             dir_file = readdir(dir);
         }
 
@@ -40,7 +48,7 @@ void ls(char* target_dir, int show_hidden, int show_long) {
 }
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     int show_hidden = 0;
     int show_long = 0;
     char* target_dir = ".";
@@ -51,7 +59,7 @@ int main(int argc, char* argv[]) {
         cmp++;
     }
 
-    while(cmp <= argc) {    //<= car on initialise cmp a 1
+    while(cmp < argc) {
         if (strcmp(argv[cmp], "-a") == 0) {
             show_hidden = 1;
         }

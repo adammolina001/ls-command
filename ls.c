@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pwd.h>
+#include <grp.h>
+#include <time.h>
+
 
 
 void ls(char* target_dir, int show_hidden, int show_long) {
@@ -20,26 +24,49 @@ void ls(char* target_dir, int show_hidden, int show_long) {
     dir = opendir(target_dir); 
 
         dir_file = readdir(dir);
-        printf("permissions  liens  proprietaire  groupe  taille  date  nom\n");
+        if (show_long) printf("permissions  liens  proprietaire  groupe  taille  date  nom\n");
+
         while(dir_file != NULL) {
             if (!show_hidden && dir_file->d_name[0] == '.') { //Le fichier doit etre affiché
                 dir_file = readdir(dir);
                 continue;
-
             }
             if (show_long) {
                 struct stat file_info;
+                
                 size_t len = strlen(dir_file->d_name) + strlen(target_dir) + 2; //+2 pour le "/" et le "\0"
-                char* pathname = malloc(len);
-                strcat(pathname, target_dir); strcat(pathname, "/"); strcat(pathname, dir_file->d_name); 
+                char pathname[len];
+                snprintf(pathname, len, "%s/%s", target_dir, dir_file->d_name); //Construit le pathname
+                
                 if (stat(pathname, &file_info) == -1) {
                     perror("stat failed");
                 }
-                printf("%lu  %lu  %d  %d  %ld  %li  %s\n", file_info.st_rdev, file_info.st_nlink, file_info.st_uid, file_info.st_gid, file_info.st_size, file_info.st_mtime, dir_file->d_name);
+
+                //Construction de la date 
+                size_t size_max = 20; //9 = september + "  " + day + " " + hour + \0
+                char* file_time = malloc(20);
+                strftime(file_time, size_max, "%B  %d %R", gmtime(&file_info.st_mtime));   
+                
+                //permissions
+                char perms[11]; //1directory 3owner 3group 3others
+                perms[0] = S_ISDIR(file_info.st_mode) ? 'd' : '-';
+                perms[1] = S_IRUSR & file_info.st_mode ? 'r' : '-';
+                perms[2] = S_IWUSR & file_info.st_mode ? 'w' : '-';
+                perms[3] = S_IXUSR & file_info.st_mode ? 'x' : '-';
+                perms[4] = S_IRGRP & file_info.st_mode ? 'r' : '-';
+                perms[5] = S_IWGRP & file_info.st_mode ? 'w' : '-';
+                perms[6] = S_IXGRP & file_info.st_mode ? 'x' : '-';
+                perms[7] = S_IROTH & file_info.st_mode ? 'r' : '-';
+                perms[8] = S_IWOTH & file_info.st_mode ? 'w' : '-';
+                perms[9] = S_IXOTH & file_info.st_mode ? 'x' : '-';
+                perms[10] = '\0';
+
+                printf("%s  %lu  %s  %s  %8ld  %20s  %s\n", perms, file_info.st_nlink, getpwuid(file_info.st_uid)->pw_name, getgrgid(file_info.st_gid)->gr_name, file_info.st_size, file_time, dir_file->d_name);
 
             } else {
                 printf("%s  \n", dir_file->d_name);
             }
+
             dir_file = readdir(dir);
         }
 

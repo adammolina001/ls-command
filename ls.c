@@ -32,6 +32,25 @@ void set_str_perms(struct stat file_info, char* perms) {
     perms[10] = '\0';
 }
 
+void ls_long(struct stat file_info, char* file_name) {
+    //Construction de la date 
+                char file_time[20]; //9 = september + "  " + day + " " + hour + \0
+                strftime(file_time, 20, "%B  %d %R", localtime(&file_info.st_mtime));   
+                
+                //permissions
+                char perms[11]; //1directory 3owner 3group 3others
+                set_str_perms(file_info, perms);
+
+                printf("%s  %lu  %s  %s  %8ld  %20s  %s\n", perms, file_info.st_nlink, getpwuid(file_info.st_uid)->pw_name, getgrgid(file_info.st_gid)->gr_name, file_info.st_size, file_time, file_name);
+}
+
+int compare(void* char1, void* char2) {
+    char1 = *(char**) char1;
+    char2 = *(char**) char2;
+
+    return strcmp(char1, char2);
+}
+
 void ls(char* target_dir, int show_hidden, int show_long) {
     DIR *dir;
     struct dirent *dir_file;
@@ -42,40 +61,53 @@ void ls(char* target_dir, int show_hidden, int show_long) {
         
         if (show_long) printf("permissions  liens  proprietaire  groupe  taille  date  nom\n");
 
+        int capacity = 10;
+        int count = 0;
+        char** tab_filenames = malloc(capacity * sizeof(char*));
+
+        //bulding of the filename array
         while(dir_file != NULL) {
-            if (!show_hidden && dir_file->d_name[0] == '.') { //Le fichier doit etre affiché
+            if (!show_hidden && dir_file->d_name[0] == '.') { //Le fichier ne doit pas etre affiché
                 dir_file = readdir(dir);
                 continue;
             }
-            if (show_long) {
-                struct stat file_info;
-                
-                size_t len = strlen(dir_file->d_name) + strlen(target_dir) + 2; //+2 pour le "/" et le "\0"
-                char pathname[len];
-                snprintf(pathname, len, "%s/%s", target_dir, dir_file->d_name); //Construit le pathname
-                
-                if (stat(pathname, &file_info) == -1) {
-                    perror("stat failed");
-                }
 
-                //Construction de la date 
-                char file_time[20]; //9 = september + "  " + day + " " + hour + \0
-                strftime(file_time, 20, "%B  %d %R", localtime(&file_info.st_mtime));   
-                
-                //permissions
-                char perms[11]; //1directory 3owner 3group 3others
-                set_str_perms(file_info, perms);
-
-                printf("%s  %lu  %s  %s  %8ld  %20s  %s\n", perms, file_info.st_nlink, getpwuid(file_info.st_uid)->pw_name, getgrgid(file_info.st_gid)->gr_name, file_info.st_size, file_time, dir_file->d_name);
-
-            } else {
-                printf("%s  \n", dir_file->d_name);
+            if (count == capacity) {
+                capacity *= 2;
+                tab_filenames = realloc(tab_filenames, capacity);
             }
+            tab_filenames[count] = strdup(dir_file->d_name);
+            count++;            
 
             dir_file = readdir(dir);
         }
-
+        
     closedir(dir);
+
+    qsort (tab_filenames, count, sizeof(char*), compare);
+
+    //Output
+    for (int i = 0; i < count; i++) {
+        if (show_long) {
+            struct stat file_info;
+            size_t len = strlen(tab_filenames[i]) + strlen(target_dir) + 2; //+2 pour le "/" et le "\0"
+            char pathname[len];
+            snprintf(pathname, len, "%s/%s", target_dir, tab_filenames[i]); //Construit le pathname
+            if (stat(pathname, &file_info) == -1) {
+                perror("stat failed");
+            }
+            ls_long(file_info, tab_filenames[i]);
+            
+        } else {
+            printf("%s  ", tab_filenames[i]);
+        }
+
+        free(tab_filenames[i]);
+    }
+
+    if (!show_long) printf("\n");
+
+
 
 }
 

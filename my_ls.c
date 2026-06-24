@@ -29,7 +29,7 @@ void ls_long(struct stat* file_info, char* file_name) {
     perms[9] = S_IXOTH & file_info->st_mode ? 'x' : '-';
     perms[10] = '\0';
 
-    printf("%s  %lu  %s  %s  %8ld  %20s  %s\n", perms, file_info->st_nlink, getpwuid(file_info->st_uid)->pw_name, getgrgid(file_info->st_gid)->gr_name, file_info->st_size, file_time, file_name);
+    printf("%s  %4lu  %7s  %s  %12ldo  %16s  %s\n", perms, file_info->st_nlink, getpwuid(file_info->st_uid)->pw_name, getgrgid(file_info->st_gid)->gr_name, file_info->st_size, file_time, file_name);
 }
 
 int compare(const void* a, const void* b) {
@@ -89,7 +89,7 @@ void ls(char* target_dir, int show_hidden, int show_long) {
     qsort (tab_filenames, nb_of_files, sizeof(char*), compare);
 
     //Output
-    if (show_long) printf("permissions  liens  proprietaire  groupe  taille  date  nom\n");
+    if (show_long) printf("permissions  links  owner  group       size           date          name\n");
     for (int i = 0; i < nb_of_files; i++) {
         if (show_long) {
             struct stat file_info;

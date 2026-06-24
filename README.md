@@ -14,7 +14,7 @@ My version of the "ls" terminal's command before starting the shell.
   -  ```./my_ls -l```  show files names and status
   -  ```./my_ls -la``` or ```./my_ls -al``` to see both
 
-## Example
+## Example : ./my_ls -l
 ```
   permissions  links  owner  group       size           date          name
   -rw-rw-r--     1     adam  adam           402o    June  24 10:11  README.md
